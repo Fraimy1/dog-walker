@@ -1,0 +1,17 @@
+[project]
+name = "dog-walker-bot"
+version = "1.0.0"
+description = "Telegram bot for logging dog walks"
+requires-python = ">=3.10"
+dependencies = [
+    "aiogram>=3.0",
+    "sqlalchemy>=2.0",
+    "aiosqlite",
+    "pydantic-settings",
+    "apscheduler>=4.0.0a5",
+    "loguru>=0.7.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
