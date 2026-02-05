@@ -14,6 +14,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "walk_sent": "Прогулка записана!",
         "no_active_walk": "Нет активной прогулки. Нажмите кнопку «Выгулять собаку».",
         "param_toggled": "Параметр обновлён.",
+        "walk_at_time_button": "🕐 Прогулка в указанное время",
+        "enter_time_prompt": (
+            "Введите время прогулки.\n"
+            "\n"
+            "Поддерживаемые форматы:\n"
+            "• 14:30, 23:00 (24-часовой)\n"
+            "• 2 PM, 11:23 AM (12-часовой)\n"
+            "• 2PM, 2:30PM\n"
+            "\n"
+            "Если AM/PM не указано, берётся ближайшее прошедшее время.\n"
+            "Например, в 5:00 ввод «23» означает 23:00 вчера."
+        ),
+        "time_set": "Время установлено: {time}. Выберите параметры или нажмите «Отправить»:",
+        "invalid_time": "Не удалось распознать время.\n\nПримеры: 14:30, 2 PM, 11:23AM",
+        "yesterday": "вчера",
     },
     "en": {
         "welcome": "Hello! Choose your language:",
@@ -30,6 +45,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "walk_sent": "Walk logged!",
         "no_active_walk": "No active walk. Press «Walk the dog» button.",
         "param_toggled": "Parameter updated.",
+        "walk_at_time_button": "🕐 Log walk at time",
+        "enter_time_prompt": (
+            "Enter the walk time.\n"
+            "\n"
+            "Supported formats:\n"
+            "• 14:30, 23:00 (24-hour)\n"
+            "• 2 PM, 11:23 AM (12-hour)\n"
+            "• 2PM, 2:30PM\n"
+            "\n"
+            "If AM/PM is not specified, the closest past time is assumed.\n"
+            "E.g. at 5:00 AM, entering «23» means 23:00 yesterday."
+        ),
+        "time_set": "Time set to: {time}. Select parameters or press «Send»:",
+        "invalid_time": "Couldn't parse the time.\n\nExamples: 14:30, 2 PM, 11:23AM",
+        "yesterday": "yesterday",
     },
 }
 

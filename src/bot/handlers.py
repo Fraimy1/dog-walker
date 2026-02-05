@@ -1,3 +1,6 @@
+import re
+from datetime import datetime, timedelta
+
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -15,10 +18,51 @@ from src.database.session import async_session
 
 router = Router()
 
+# Users currently waiting to type a time
+_awaiting_time: set[int] = set()
+
+
+def _parse_time(text: str) -> datetime | None:
+    """Parse flexible time input into the closest past datetime.
+
+    Supports: 14:30, 2 PM, 2:00AM, 02:00 AM, 11:23PM, 23:23, 11:23, 23
+    If no AM/PM is given the result is rolled back to yesterday when needed.
+    """
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$", text.strip().lower())
+    if not m:
+        return None
+
+    hour = int(m.group(1))
+    minute = int(m.group(2)) if m.group(2) else 0
+    period = m.group(3)
+
+    if period:
+        if hour < 1 or hour > 12:
+            return None
+        if period == "am":
+            hour = 0 if hour == 12 else hour
+        else:
+            hour = hour if hour == 12 else hour + 12
+    else:
+        if hour > 23:
+            return None
+
+    if minute > 59:
+        return None
+
+    now = datetime.now()
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    if target > now:
+        target -= timedelta(days=1)
+
+    return target
+
 
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     """Handle /start command - show language selection."""
+    _awaiting_time.discard(message.from_user.id)
     logger.info(f"User {message.from_user.id} ({message.from_user.username}) started bot")
     await message.answer(
         text=get_text("welcome", "ru") + "\n" + get_text("welcome", "en"),
@@ -40,6 +84,7 @@ async def set_english(message: Message) -> None:
 
 async def _set_language(message: Message, lang: str) -> None:
     """Set user language and show main keyboard."""
+    _awaiting_time.discard(message.from_user.id)
     async with async_session() as session:
         user = await crud.get_or_create_user(
             session,
@@ -58,6 +103,8 @@ async def _set_language(message: Message, lang: str) -> None:
 @router.message(F.text.in_({TEXTS["ru"]["walk_button"], TEXTS["en"]["walk_button"]}))
 async def start_walk(message: Message) -> None:
     """Handle walk button press - create walk and show parameter keyboard."""
+    _awaiting_time.discard(message.from_user.id)
+
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
         if user is None:
@@ -90,6 +137,33 @@ async def start_walk(message: Message) -> None:
         )
 
 
+@router.message(F.text.in_({TEXTS["ru"]["walk_at_time_button"], TEXTS["en"]["walk_at_time_button"]}))
+async def walk_at_time(message: Message) -> None:
+    """Handle 'log walk at time' button - enter time-input mode."""
+    async with async_session() as session:
+        user = await crud.get_user_by_telegram_id(session, message.from_user.id)
+        if user is None:
+            logger.warning(f"Unregistered user {message.from_user.id} tried to log walk at time")
+            await message.answer("Please /start first")
+            return
+
+        lang = user.language
+
+        # If there's already a pending walk, just show parameter keyboard
+        existing_walk = await crud.get_pending_walk(session, user.id)
+        if existing_walk:
+            logger.debug(f"User {user.telegram_id} has existing pending walk {existing_walk.id}")
+            await message.answer(
+                text=get_text("walk_started", lang),
+                reply_markup=parameter_keyboard(lang),
+            )
+            return
+
+    _awaiting_time.add(message.from_user.id)
+    logger.info(f"User {message.from_user.id} entered time-input mode")
+    await message.answer(text=get_text("enter_time_prompt", lang))
+
+
 @router.message(F.text.in_({TEXTS["ru"]["didnt_poop"], TEXTS["en"]["didnt_poop"]}))
 async def toggle_didnt_poop(message: Message) -> None:
     """Toggle 'didn't poop' parameter."""
@@ -104,6 +178,8 @@ async def toggle_long_walk(message: Message) -> None:
 
 async def _toggle_param(message: Message, param: str) -> None:
     """Toggle a walk parameter."""
+    _awaiting_time.discard(message.from_user.id)
+
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
         if user is None:
@@ -140,6 +216,8 @@ async def _toggle_param(message: Message, param: str) -> None:
 @router.message(F.text.in_({TEXTS["ru"]["send"], TEXTS["en"]["send"]}))
 async def send_walk(message: Message, bot: Bot) -> None:
     """Finalize and send walk notification."""
+    _awaiting_time.discard(message.from_user.id)
+
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
         if user is None:
@@ -175,3 +253,46 @@ async def send_walk(message: Message, bot: Bot) -> None:
 
         # Broadcast to all users
         await _broadcast_walk(session, walk, user)
+
+
+# --- catch-all: MUST be registered after every other handler ---
+
+
+@router.message()
+async def handle_time_input(message: Message) -> None:
+    """Receive free-text time input from users in time-entry mode."""
+    if message.from_user.id not in _awaiting_time:
+        return
+
+    async with async_session() as session:
+        user = await crud.get_user_by_telegram_id(session, message.from_user.id)
+        if user is None:
+            return
+
+        lang = user.language
+        parsed = _parse_time(message.text or "")
+
+        if parsed is None:
+            logger.debug(f"User {message.from_user.id} sent unparseable time: {message.text!r}")
+            await message.answer(text=get_text("invalid_time", lang))
+            return
+
+        # Create walk with the custom time
+        walk = await crud.create_walk(session, user.id)
+        await crud.update_walk_time(session, walk.id, parsed)
+
+        _awaiting_time.discard(message.from_user.id)
+        logger.info(f"User {user.telegram_id} set walk {walk.id} time to {parsed}")
+
+        # Schedule auto-finalization
+        await schedule_walk_finalization(user.id, walk.id)
+
+        # Build confirmation — append "(yesterday)" when date differs
+        time_str = parsed.strftime("%H:%M")
+        if parsed.date() < datetime.now().date():
+            time_str += f" ({get_text('yesterday', lang)})"
+
+        await message.answer(
+            text=get_text("time_set", lang).format(time=time_str),
+            reply_markup=parameter_keyboard(lang),
+        )

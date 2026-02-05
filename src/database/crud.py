@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,6 +75,17 @@ async def update_walk_params(
             walk.didnt_poop = didnt_poop
         if long_walk is not None:
             walk.long_walk = long_walk
+        await session.commit()
+
+
+async def update_walk_time(session: AsyncSession, walk_id: int, walked_at: datetime) -> None:
+    """Set custom walked_at timestamp."""
+    stmt = select(Walk).where(Walk.id == walk_id)
+    result = await session.execute(stmt)
+    walk = result.scalar_one_or_none()
+
+    if walk:
+        walk.walked_at = walked_at
         await session.commit()
 
 

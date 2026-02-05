@@ -18,10 +18,11 @@ def language_keyboard() -> ReplyKeyboardMarkup:
 
 
 def main_keyboard(lang: str = "ru") -> ReplyKeyboardMarkup:
-    """Main keyboard with walk button."""
+    """Main keyboard with walk buttons."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=get_text("walk_button", lang))],
+            [KeyboardButton(text=get_text("walk_at_time_button", lang))],
         ],
         resize_keyboard=True,
     )
