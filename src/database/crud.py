@@ -34,6 +34,17 @@ async def set_user_language(session: AsyncSession, user_id: int, language: str) 
         await session.commit()
 
 
+async def set_display_name(session: AsyncSession, user_id: int, display_name: str) -> None:
+    """Set user's broadcast display name."""
+    stmt = select(User).where(User.id == user_id)
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user:
+        user.display_name = display_name
+        await session.commit()
+
+
 async def get_user_by_telegram_id(
     session: AsyncSession, telegram_id: int
 ) -> User | None:

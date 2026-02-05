@@ -18,8 +18,15 @@ from src.database.session import async_session
 
 router = Router()
 
-# Users currently waiting to type a time
+# Users currently waiting to type free-text input
 _awaiting_time: set[int] = set()
+_awaiting_name: set[int] = set()
+
+
+def _clear_input_states(user_id: int) -> None:
+    """Clear all pending free-text input states for a user."""
+    _awaiting_time.discard(user_id)
+    _awaiting_name.discard(user_id)
 
 
 def _parse_time(text: str) -> datetime | None:
@@ -62,7 +69,7 @@ def _parse_time(text: str) -> datetime | None:
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     """Handle /start command - show language selection."""
-    _awaiting_time.discard(message.from_user.id)
+    _clear_input_states(message.from_user.id)
     logger.info(f"User {message.from_user.id} ({message.from_user.username}) started bot")
     await message.answer(
         text=get_text("welcome", "ru") + "\n" + get_text("welcome", "en"),
@@ -84,7 +91,7 @@ async def set_english(message: Message) -> None:
 
 async def _set_language(message: Message, lang: str) -> None:
     """Set user language and show main keyboard."""
-    _awaiting_time.discard(message.from_user.id)
+    _clear_input_states(message.from_user.id)
     async with async_session() as session:
         user = await crud.get_or_create_user(
             session,
@@ -103,7 +110,7 @@ async def _set_language(message: Message, lang: str) -> None:
 @router.message(F.text.in_({TEXTS["ru"]["walk_button"], TEXTS["en"]["walk_button"]}))
 async def start_walk(message: Message) -> None:
     """Handle walk button press - create walk and show parameter keyboard."""
-    _awaiting_time.discard(message.from_user.id)
+    _clear_input_states(message.from_user.id)
 
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
@@ -178,7 +185,7 @@ async def toggle_long_walk(message: Message) -> None:
 
 async def _toggle_param(message: Message, param: str) -> None:
     """Toggle a walk parameter."""
-    _awaiting_time.discard(message.from_user.id)
+    _clear_input_states(message.from_user.id)
 
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
@@ -216,7 +223,7 @@ async def _toggle_param(message: Message, param: str) -> None:
 @router.message(F.text.in_({TEXTS["ru"]["send"], TEXTS["en"]["send"]}))
 async def send_walk(message: Message, bot: Bot) -> None:
     """Finalize and send walk notification."""
-    _awaiting_time.discard(message.from_user.id)
+    _clear_input_states(message.from_user.id)
 
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
@@ -255,15 +262,41 @@ async def send_walk(message: Message, bot: Bot) -> None:
         await _broadcast_walk(session, walk, user)
 
 
+@router.message(F.text.in_({TEXTS["ru"]["change_name_button"], TEXTS["en"]["change_name_button"]}))
+async def change_name(message: Message) -> None:
+    """Handle 'change name' button - enter name-input mode."""
+    async with async_session() as session:
+        user = await crud.get_user_by_telegram_id(session, message.from_user.id)
+        if user is None:
+            logger.warning(f"Unregistered user {message.from_user.id} tried to change name")
+            await message.answer("Please /start first")
+            return
+
+        lang = user.language
+        current = user.display_name or user.username or f"User {user.telegram_id}"
+
+    _awaiting_time.discard(message.from_user.id)
+    _awaiting_name.add(message.from_user.id)
+    logger.info(f"User {message.from_user.id} entered name-input mode")
+    await message.answer(text=get_text("change_name_prompt", lang).format(current=current))
+
+
 # --- catch-all: MUST be registered after every other handler ---
 
 
 @router.message()
-async def handle_time_input(message: Message) -> None:
-    """Receive free-text time input from users in time-entry mode."""
-    if message.from_user.id not in _awaiting_time:
-        return
+async def handle_free_text(message: Message) -> None:
+    """Dispatch free-text input to the appropriate state handler."""
+    user_id = message.from_user.id
 
+    if user_id in _awaiting_time:
+        await _handle_time_input(message)
+    elif user_id in _awaiting_name:
+        await _handle_name_input(message)
+
+
+async def _handle_time_input(message: Message) -> None:
+    """Process time input from a user in time-entry mode."""
     async with async_session() as session:
         user = await crud.get_user_by_telegram_id(session, message.from_user.id)
         if user is None:
@@ -296,3 +329,27 @@ async def handle_time_input(message: Message) -> None:
             text=get_text("time_set", lang).format(time=time_str),
             reply_markup=parameter_keyboard(lang),
         )
+
+
+async def _handle_name_input(message: Message) -> None:
+    """Process name input from a user in name-entry mode."""
+    async with async_session() as session:
+        user = await crud.get_user_by_telegram_id(session, message.from_user.id)
+        if user is None:
+            return
+
+        lang = user.language
+        name = (message.text or "").strip()
+
+        if not name:
+            await message.answer(text=get_text("invalid_name", lang))
+            return
+
+        await crud.set_display_name(session, user.id, name)
+
+    _awaiting_name.discard(message.from_user.id)
+    logger.info(f"User {message.from_user.id} set display name to {name!r}")
+    await message.answer(
+        text=get_text("name_set", lang).format(name=name),
+        reply_markup=main_keyboard(lang),
+    )

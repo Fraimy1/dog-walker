@@ -29,6 +29,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "time_set": "Время установлено: {time}. Выберите параметры или нажмите «Отправить»:",
         "invalid_time": "Не удалось распознать время.\n\nПримеры: 14:30, 2 PM, 11:23AM",
         "yesterday": "вчера",
+        "change_name_button": "✏️ Сменить имя",
+        "change_name_prompt": "Текущее имя: {current}\n\nВведите новое имя:",
+        "name_set": "Имя изменено на: {name}",
+        "invalid_name": "Имя не может быть пустым.",
     },
     "en": {
         "welcome": "Hello! Choose your language:",
@@ -60,6 +64,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "time_set": "Time set to: {time}. Select parameters or press «Send»:",
         "invalid_time": "Couldn't parse the time.\n\nExamples: 14:30, 2 PM, 11:23AM",
         "yesterday": "yesterday",
+        "change_name_button": "✏️ Change name",
+        "change_name_prompt": "Current name: {current}\n\nEnter your new name:",
+        "name_set": "Name changed to: {name}",
+        "invalid_name": "Name can't be empty.",
     },
 }
 

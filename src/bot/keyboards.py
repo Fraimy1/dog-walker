@@ -23,6 +23,7 @@ def main_keyboard(lang: str = "ru") -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text=get_text("walk_button", lang))],
             [KeyboardButton(text=get_text("walk_at_time_button", lang))],
+            [KeyboardButton(text=get_text("change_name_button", lang))],
         ],
         resize_keyboard=True,
     )

@@ -132,7 +132,7 @@ async def _broadcast_walk(session, walk, walker_user) -> None:
 
     for user in all_users:
         # Build message in user's language
-        username = walker_user.username or f"User {walker_user.telegram_id}"
+        username = walker_user.display_name or walker_user.username or f"User {walker_user.telegram_id}"
         time_str = walk.walked_at.strftime("%H:%M")
 
         message = get_text("walk_logged", user.language).format(
