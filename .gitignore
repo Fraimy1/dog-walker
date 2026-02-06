@@ -41,3 +41,5 @@ ENV/
 .DS_Store
 Thumbs.db
 bot.log
+
+requirements.txt
