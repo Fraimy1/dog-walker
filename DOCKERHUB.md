@@ -16,7 +16,13 @@ docker run -d \
   -e BOT_TOKEN=your_token_here \
   -e ALLOWED_USERS='[111111111,222222222]' \
   -v dog-walker-data:/app/data \
-  fraimy/dog-walker-bot
+  blaze698/dog-walker-bot
+```
+
+Or use `--env-file` to keep secrets out of your shell history:
+
+```bash
+docker run -d --env-file .env -v dog-walker-data:/app/data blaze698/dog-walker-bot
 ```
 
 ### Docker Compose
@@ -24,7 +30,7 @@ docker run -d \
 ```yaml
 services:
   bot:
-    image: fraimy/dog-walker-bot
+    image: blaze698/dog-walker-bot
     environment:
       - BOT_TOKEN=your_token_here
       - ALLOWED_USERS=[111111111,222222222]
@@ -78,7 +84,13 @@ docker run -d \
   -e BOT_TOKEN=ваш_токен \
   -e ALLOWED_USERS='[111111111,222222222]' \
   -v dog-walker-data:/app/data \
-  fraimy/dog-walker-bot
+  blaze698/dog-walker-bot
+```
+
+Или используйте `--env-file`, чтобы не светить секреты в истории команд:
+
+```bash
+docker run -d --env-file .env -v dog-walker-data:/app/data blaze698/dog-walker-bot
 ```
 
 ### Docker Compose
@@ -86,7 +98,7 @@ docker run -d \
 ```yaml
 services:
   bot:
-    image: fraimy/dog-walker-bot
+    image: blaze698/dog-walker-bot
     environment:
       - BOT_TOKEN=ваш_токен
       - ALLOWED_USERS=[111111111,222222222]

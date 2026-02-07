@@ -33,6 +33,12 @@ docker run -d \
   dog-walker-bot
 ```
 
+Or use `--env-file` to keep secrets out of your shell history:
+
+```bash
+docker run -d --env-file .env -v dog-walker-data:/app/data dog-walker-bot
+```
+
 #### Docker Compose
 
 ```yaml
@@ -122,6 +128,12 @@ docker run -d \
   -e ALLOWED_USERS='[111111111,222222222]' \
   -v dog-walker-data:/app/data \
   dog-walker-bot
+```
+
+Или используйте `--env-file`, чтобы не светить секреты в истории команд:
+
+```bash
+docker run -d --env-file .env -v dog-walker-data:/app/data dog-walker-bot
 ```
 
 #### Docker Compose
