@@ -6,6 +6,7 @@ from loguru import logger
 
 from src.bot.config import settings
 from src.bot.handlers import router
+from src.bot.middleware import WhitelistMiddleware
 from src.bot.scheduler import init_scheduler, stop_scheduler
 from src.database.session import run_migrations
 
@@ -46,6 +47,7 @@ async def main() -> None:
     # Create bot and dispatcher
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
+    dp.update.outer_middleware(WhitelistMiddleware())
     dp.include_router(router)
 
     # Initialize scheduler
